@@ -1,4 +1,4 @@
-module host.local/malko/packageJson
+module github.com/software-t-rex/packageJson
 
 go 1.20
 
