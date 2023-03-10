@@ -74,9 +74,9 @@ type PackageJSON struct {
 	Pnpm               any `json:"pnpm,omitempty"` // specific to pnpm
 
 	// following properties are not related to package.json but are used for some tooling
-	file string      `json:"-"` // this is the path of the package.json file used internally
-	Dir  string      `json:"-"` // this is the absolute path of the package.json directory
-	Mu   *sync.Mutex `json:"-"`
+	file string     `json:"-"` // this is the path of the package.json file used internally
+	Dir  string     `json:"-"` // this is the absolute path of the package.json directory
+	Mu   sync.Mutex `json:"-"`
 }
 
 func Read(path string) (p *PackageJSON, err error) {
