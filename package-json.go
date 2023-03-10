@@ -11,6 +11,8 @@ package packageJson
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,21 +21,25 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-type PackageJSONBug struct {
-	Url   string `json:"url"`
-	Email string `json:"email"`
-}
 type packageJSONPeerDependencyMeta struct {
 	Optional bool `json:"optional"`
 }
 
+var ErrInvalidJson = errors.New("Invalid json")
+
+// @TODO implement accessors for properties that can take multiple types
+
+// Struct that represents a package.json file content
+// properties that can have multiple forms will have any type, you should type assert before working with them
+// It add some specific properties:
+// Dir is the absoulte path to directory where the package.json file is located
+// Mu is a sync.Mutex for the package.json file in case you need manipulating it in a concurrency way
 type PackageJSON struct {
 	Name                 string                                   `json:"name,omitempty"`
 	Version              string                                   `json:"version,omitempty"`
 	Description          string                                   `json:"description,omitempty"`
 	Keywords             []string                                 `json:"keywords,omitempty"`
 	Homepage             string                                   `json:"homepage,omitempty"`
-	Bugs                 PackageJSONBug                           `json:"bugs,omitempty"`
 	License              string                                   `json:"license,omitempty"`
 	Files                []string                                 `json:"files,omitempty"`
 	Main                 string                                   `json:"main,omitempty"`
@@ -54,6 +60,7 @@ type PackageJSON struct {
 
 	// following properties can have multiple types or I was to lazy to dig in at the moment PR welcomes
 	Author             any `json:"author,omitempty"`
+	Bugs               any `json:"bugs,omitempty"`
 	Contributors       any `json:"contributors,omitempty"`
 	Funding            any `json:"funding,omitempty"`
 	Bin                any `json:"bin,omitempty"`
@@ -67,11 +74,21 @@ type PackageJSON struct {
 	Pnpm               any `json:"pnpm,omitempty"` // specific to pnpm
 
 	// following properties are not related to package.json but are used for some tooling
-	file string     // this is the path of the package.json file used internally
-	Mu   sync.Mutex `json:"-"`
+	file string      `json:"-"` // this is the path of the package.json file used internally
+	Dir  string      `json:"-"` // this is the absolute path of the package.json directory
+	Mu   *sync.Mutex `json:"-"`
 }
 
 func Read(path string) (p *PackageJSON, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if je, ok := r.(json.SyntaxError); ok {
+				err = errors.New(je.Error())
+			} else {
+				err = fmt.Errorf("packageJson error while reading %s: %s", path, r)
+			}
+		}
+	}()
 	path, err = filepath.Abs(path)
 	if err != nil {
 		return
@@ -81,10 +98,15 @@ func Read(path string) (p *PackageJSON, err error) {
 	if err != nil {
 		return
 	}
-	err = json.Unmarshal(raw, &p)
-	if err != nil {
-		p.file = path
+	if !json.Valid(raw) {
+		return p, fmt.Errorf("%w: %s", ErrInvalidJson, path)
 	}
+	err = json.Unmarshal(raw, &p)
+	if err == nil {
+		p.file = path
+		p.Dir = filepath.Dir(path)
+	}
+
 	return p, err
 }
 
@@ -164,7 +186,7 @@ func (p *PackageJSON) FilterWorkspaceDirs(dirList []string, returnAbsPath bool) 
 			for _, glob := range excPatterns {
 				match, _ := doublestar.Match(glob, dir)
 				if match {
-					res = append(res[i:], res[:i+1]...)
+					res = append(res[:i], res[i+1:]...)
 				}
 			}
 		}
