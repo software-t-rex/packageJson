@@ -70,10 +70,11 @@ var ErrMissingWorkspaceInfo error = fmt.Errorf("%wcannot satisfy workspace proto
 var ErrOutsideWokspace error = fmt.Errorf("%wcan't satisfy a dependency being outside workspace", ErrSatisfaction)
 var ErrRemoteProtocol = fmt.Errorf("%wcannot satisfy remote protocol", ErrSatisfaction)
 
-// workspacesRootDir is optional and is used to determine that the package is withing the root of the workspace directory
-// if not explicitly specified it will default to the directory of dep.FromFile
-// if false you should also get an error explaining the reason for the failure
-// you can also receive error while assuming to return true in certain cases
+// workspacesRootDir is optional and is used to determine that the package is within the root of the workspace directory.
+// If not explicitly specified it will default to the directory of dep.FromFile.
+// If false you should also get an error explaining the reason for the failure.
+// You can also receive error while assuming to return true in certain cases
+// You can test with !errors.Is(err, packageJson.ErrSatisfaction) to test for errors that may be unintended.
 func (p *PackageJSON) SatisfyWorskpaceDep(dep PackageJsonDepInfo, workspacesRootDir string) (bool, error) {
 	if p.Name != dep.Name {
 		return false, fmt.Errorf("%w: %s!= %s", ErrMismatchName, p.Name, dep.Name)
