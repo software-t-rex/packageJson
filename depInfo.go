@@ -9,10 +9,12 @@ package packageJson
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/Masterminds/semver"
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 type PackageJsonDepInfo struct {
@@ -60,48 +62,80 @@ func newDependencyInfo(p *PackageJSON, moduleName string) (i PackageJsonDepInfo,
 	return
 }
 
-type WorkSpacePackage struct {
-	Name    string
-	Version string
-	Dir     string
-}
-type WorkSpacePackageList map[string]WorkSpacePackage
+var ErrSatisfaction error = errors.New("SatisfyWorskpaceDep failed: ")
+var ErrMismatchName error = fmt.Errorf("%wpackage name mismatch", ErrSatisfaction)
+var ErrMismatchPath error = fmt.Errorf("%wpackage path mismatch dependency path", ErrSatisfaction)
+var ErrParseVersion error = fmt.Errorf("%wpackage version check failed", ErrSatisfaction)
+var ErrMissingWorkspaceInfo error = fmt.Errorf("%wcannot satisfy workspace protocol dependency without a workspace directory", ErrSatisfaction)
+var ErrOutsideWokspace error = fmt.Errorf("%wcan't satisfy a dependency being outside workspace", ErrSatisfaction)
+var ErrRemoteProtocol = fmt.Errorf("%wcannot satisfy remote protocol", ErrSatisfaction)
 
-// workspacePkgs is a map of package name as keys and package version as values
-func (i PackageJsonDepInfo) IsWorkspaceDep(workspaceRootDir string, workspacePkgs WorkSpacePackageList) (bool, error) {
-	depPackage, ok := workspacePkgs[i.Name]
-	if !ok {
-		return false, nil
+// workspacesRootDir is optional and is used to determine that the package is withing the root of the workspace directory
+// if not explicitly specified it will default to the directory of dep.FromFile
+// if false you should also get an error explaining the reason for the failure
+// you can also receive error while assuming to return true in certain cases
+func (p *PackageJSON) SatisfyWorskpaceDep(dep PackageJsonDepInfo, workspacesRootDir string) (bool, error) {
+	if p.Name != dep.Name {
+		return false, fmt.Errorf("%w: %s!= %s", ErrMismatchName, p.Name, dep.Name)
 	}
+	// if empty set workspaceRootDir as dependecy package directory
+	if workspacesRootDir == "" {
+		if dep.Protocol == "workspace" {
+			return false, ErrMissingWorkspaceInfo
+		}
+		workspacesRootDir = filepath.Dir(dep.FromFile)
+	} else if !filepath.IsAbs(workspacesRootDir) {
+		workspacesRootDirAbs, err := filepath.Abs(workspacesRootDir)
+		if err != nil {
+			return false, err
+		}
+		workspacesRootDir = workspacesRootDirAbs
+	}
+
+	// check package dir is in same workspace than the dep
+	if ok, err := doublestar.Match(filepath.Join(workspacesRootDir, "**"), p.Dir); !ok {
+		if err != nil {
+			return false, fmt.Errorf("%w: can't check dependency is inside workspace", err)
+		}
+		return false, ErrOutsideWokspace
+	}
+
 	// workspace protocol => considered ok no more check
-	if i.Protocol == "workspace" {
+	if dep.Protocol == "workspace" {
 		return true, nil
 	}
+
 	// local protocols we should look at the resolved path
-	if i.Protocol == "file" || i.Protocol == "link" || i.Protocol == "portal" {
-		depPath := filepath.Join(i.FromFile, i.VersionRange)
-		if depPath != depPackage.Dir {
-			return false, errors.New("Package " + i.Name + " path does not match workspace package " + depPackage.Name)
+	if dep.Protocol == "file" || dep.Protocol == "link" || dep.Protocol == "portal" {
+		depPath := filepath.Join(filepath.Dir(dep.FromFile), dep.VersionRange) // in such case versionRange is a path
+		if depPath != p.Dir {
+			return false, fmt.Errorf("%w: Package "+dep.Name+" path does not match workspace package "+p.Name, ErrMismatchPath)
 		}
 		return true, nil
 	}
-	// any other protocols than defaults should be considered remote and so not ok
-	if i.Protocol != "" && i.Protocol != "npm" {
-		return false, nil
+
+	// any other protocols than defaults should be considered remote and so are not ok
+	if dep.Protocol != "" && dep.Protocol != "npm" {
+		return false, ErrRemoteProtocol
 	}
+
 	// at this point We need to check the version range
-	if i.VersionRange == "*" || i.VersionRange == "^" || i.VersionRange == "~" {
+	if dep.VersionRange == "*" || dep.VersionRange == "^" || dep.VersionRange == "~" {
 		return true, nil
 	}
-	constraint, errc := semver.NewConstraint(i.VersionRange)
+	constraint, errc := semver.NewConstraint(dep.VersionRange)
 	if errc != nil {
 		// if we can't parse the version, we can't check the range and will assume it is ok but will return an error
-		return true, errors.New("can't parse version range: " + i.VersionRange + " for package " + i.Name)
+		return true, fmt.Errorf("%wcan't parse version: %s", ErrParseVersion, dep.VersionRange)
 	}
-	version, errv := semver.NewVersion(depPackage.Version)
+	version, errv := semver.NewVersion(p.Version)
 	if errv != nil {
 		// if we can't parse the version, we can't check the range and will assume it is ok but will return an error
-		return true, errors.New("can't parse version: " + depPackage.Version + " for package " + depPackage.Name)
+		return true, fmt.Errorf("%wcan't parse version: %s", ErrParseVersion, p.Version)
 	}
-	return constraint.Check(version), nil
+	versionOk := constraint.Check(version)
+	if versionOk {
+		return true, nil
+	}
+	return false, ErrParseVersion
 }
