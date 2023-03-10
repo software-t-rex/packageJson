@@ -25,7 +25,7 @@ type packageJSONPeerDependencyMeta struct {
 	Optional bool `json:"optional"`
 }
 
-var ErrInvalidJson = errors.New("Invalid json")
+var ErrInvalidJson = errors.New("invalid json")
 
 // @TODO implement accessors for properties that can take multiple types
 
