@@ -1,0 +1,23 @@
+{
+	"name": "foo",
+  "version": "1.2.3",
+  "description": "A packaged foo fooer for fooing foos",
+  "main": "foo.js",
+	"author": {
+		"name" : "Barney Rubble",
+		"email" : "b@rubble.com",
+		"url" : "http://barnyrubble.tumblr.com/"
+	},
+  "bin": {
+    "my-program": "./path/to/program",
+		"my-other-program": "./path/to/other/program"
+  },
+	"funding": {
+    "type" : "individual",
+    "url" : "http://example.com/donate"
+  },
+	"man": [
+    "./man/foo.1",
+    "./man/bar.1"
+  ]
+}

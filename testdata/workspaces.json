@@ -1,0 +1,8 @@
+{
+	"workspaces": [
+		"apps/*",
+    "packages/**",
+		"!**/tests/**"
+  ],
+	"private": true
+}

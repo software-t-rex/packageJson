@@ -1,0 +1,29 @@
+{
+  "name": "fooer",
+  "version": "1.2.3",
+  "description": "A packaged fooer for fooing foos",
+  "main": "fooer.js",
+  "man": "./man/doc.1",
+  "bin": "path/to/bin",
+  "author": "Barney Rubble <b@rubble.com> (http://barnyrubble.tumblr.com/)",
+  "funding": "http://example.com/donate",
+  "scripts": {
+    "start": "node fooer.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "foo": "^1.2.3",
+    "wsFoo": "workspace:*"
+  },
+  "devDependencies": {
+    "devFoo": "<=4.5.6",
+    "devBar": "npm:0.0.1",
+    "devBaz": "file:../devBaz"
+  },
+  "optionalDependencies": {
+    "optFoo": "~7.8.9"
+  },
+  "peerDependencies": {
+    "peerFoo": "10.11.x"
+  }
+}
