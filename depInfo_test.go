@@ -55,7 +55,7 @@ func TestPackageJson_SatisfyWorskpaceDep(t *testing.T) {
 			dep, ok := testPkg.GetDepencyInfoFor(pkg.Name)
 			assert.Assert(t, ok, "can't find depency info for %s", pkg.Name)
 			satisfy, err := pkg.SatisfyWorskpaceDep(dep, "./testdata")
-			assert.Assert(t, satisfy == tt.want, "satisfyWorskpaceDep(%s) = %v, want %v, err %v", dep, tt.want, satisfy, err)
+			assert.Assert(t, satisfy == tt.want, "satisfyWorskpaceDep(%+v) = %v, want %v, err %v", dep, tt.want, satisfy, err)
 			if tt.wantErr && err == nil {
 				t.Fatalf("Should return an error")
 			} else if !tt.wantErr && err != nil {

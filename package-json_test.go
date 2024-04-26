@@ -2,6 +2,7 @@ package packageJson
 
 import (
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 
@@ -11,7 +12,11 @@ import (
 func TestRead(t *testing.T) {
 
 	pkgUnknwon, err := Read("./testdata/missing.json")
-	assert.ErrorContains(t, err, "no such file or directory")
+	if runtime.GOOS == "windows" {
+		assert.ErrorContains(t, err, "cannot find the file specified")
+	} else {
+		assert.ErrorContains(t, err, "no such file or directory")
+	}
 	assert.Assert(t, pkgUnknwon == nil)
 	pkgInvalid, err := Read("./testdata/invalid.json")
 	assert.ErrorIs(t, err, ErrInvalidJson)
